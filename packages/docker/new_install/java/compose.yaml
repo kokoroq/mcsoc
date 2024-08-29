@@ -1,0 +1,48 @@
+########################################################################
+# Minecraft Complex Server Operator for Container (MCSOC)
+#
+# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+#
+#
+#                      Docker Compose
+#               NEW INSTALL for Java Edition
+#
+#
+# This script is MCSOC compose file
+# PLEASE DO NOT EDIT
+#
+#                                               VERSION: 1.0
+########################################################################
+
+
+#----------------------------------------------------------------------#
+#   DOCKERFILE:   New Install of Server (in Current dir)
+#   VOLUME:       CONTAINER NAME:/opt/minecraft/java
+#   RESTART:      No (Default)
+#   PORT:         Any host port:25565/TCP (container port)
+#   ENVIRONMENT:  Read .env file 
+#   COMMAND:      Move app file to work dir & Start java in tmux shell
+#----------------------------------------------------------------------#
+
+services:
+  msjava:
+    build:
+      context: .
+      dockerfile: ./mcsv/Dockerfile
+    container_name: ${CONTAINER_NAME}
+    hostname: ${CONTAINER_NAME}
+    restart: "${RESTART_PARAM}"
+    ports:
+      - "${HOST_PORT}:25565"
+    volumes:
+      - vol-work:/opt/minecraft/java/
+      - /var/log/mcsoc/${CONTAINER_NAME}:/data-ch/logs/
+    command: >
+      /bin/bash -c '/usr/bin/tmux new -s MCSV -d && 
+      /usr/bin/tmux send-keys -t MCSV "java -Xmx${MS_JAVA_MEM} -Xms${MS_JAVA_MEM} -jar *.jar nogui" C-m &&
+      /bin/bash'
+    tty: true
+
+volumes:
+  vol-work:
+    name: ${CONTAINER_NAME}

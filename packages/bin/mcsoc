@@ -1,0 +1,310 @@
+#!/bin/bash
+#
+# read system files
+source /etc/mcsoc/mcsoc.conf
+
+########################################################################
+# Minecraft Complex Server Operator for Container (MCSOC)
+#
+# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+#
+#
+#                      MCSOC command
+#                   MCSOC Interface Tool
+#
+#
+# PLEASE DO NOT EDIT
+#
+#                                               VERSION: 1.0
+########################################################################
+
+#
+# Command guide
+#
+usage () {
+    cat << EOF
+    Usage: mcsoc [OPTION] [COMMAND]...
+
+    Minecraft Complex Server Operator for Container tools
+
+    < OPTIONS >
+        -s | --stat                             Display current mcsoc & container status
+        -v (CONTAINER_NAME)                     Display MCSOC version
+                                                If 'CONTAINER_NAME' is added, Display Minecraft server version
+        -h                                      Display MCSO help
+
+    < COMMAND >
+        create [be/java] FILE_PATH                  Build container image and create container
+                                                        FILE_PATH : The full path to the server app or backup tar file
+        start CONTAINER_NAME                        Start container
+        stop CONTAINER_NAME                         Stop container
+        restart CONTAINER_NAME                      Restart container
+        rm CONTAINER_NAME                           Delete container
+        rmi                                         Delete all container images
+        jump CONTAINER_NAME                         Connect to the container's shell
+        backup [full/instant] CONTAINER_NAME        Backup for container, Add 'full' or 'instant' after 'backup'
+        update [online/FILE_PATH] CONTAINER_NAME    Update minecraft server application
+                                                        online : Download from the internet and update
+                                                        FILE_PATH : Update by specifying local update file
+        com CONTAINER_NAME "MC_COMMAND"             Send Minecraft command to the Minecraft Server
+                                                        MC_COMMAND : Minecraft command syntax
+        cache-clear                                 Delete all old archive files
+        info                                        Display detailed container information
+        
+    Examples:
+        mcsoc create java /tmp/serer.jar        Create Java server of container
+        mcsoc start SAMPLE                      Start container
+        mcsoc backup full SAMPLE                Full backup for container
+        mcsoc -u ./server.jar                   Update java server
+EOF
+}
+
+########################################################################
+#                           FUNCTIONS                                  #
+########################################################################
+#   1. START/STOP/RESTART: Lifecycle of container 
+#   2. CREATE:             Build image & Create container *Script
+#   3. REMOVE:             Delete container *Script
+#   4. STATUS:             Container status & Detailed container info
+#   5. BACKUP:             Backup Minecraft application *Script
+#   6. MC_COMMAND:         Send Minecraft command
+#   7. UPDATE:             Update for Minecraft aplication *Script
+#   8. VERSION:            MCSOC & Minecraft application version
+#   9. JUMP:               Connect to the container's shell
+#   10. CACHE CLEAR:       Delete all old archive files
+########################################################################
+
+#   1. START/STOP/RESTART function
+func_lc () {
+    if [ "$1" = "start" ]; then
+        if [ "$2" = "" ]; then
+            echo "Rerun with container name"
+            exit 1
+        fi
+        # Start container
+        echo "[START] $2 container"
+        docker start $2 >/dev/null
+    elif [ "$1" = "stop" ]; then
+        if [ "$2" = "" ]; then
+            echo "Rerun with container name"
+            exit 1
+        fi
+        # Stop container
+        online=`docker inspect --format='{{.State.Status}}' $2`
+        if [ $online != "running" ]; then
+            echo "Container is not running"
+            exit 0
+        else
+            echo "[Stop] $2 container"
+            echo -n "Announcing to users..."
+
+            sleepcount=0
+            docker exec -d $2 /usr/bin/tmux send-keys -t MCSV "say The Server stops after 20 seconds. Please SAVE immediately!" C-m
+            while [ $sleepcount -le 20 ]
+            do
+                echo -n "."
+                sleep 1
+                sleepcount=`expr $sleepcount + 1`
+            done
+            
+            sleepcount=0
+            docker exec -d $2 /usr/bin/tmux send-keys -t MCSV "say Shutdown server..." C-m
+            while [ $sleepcount -le 3 ]
+            do
+                echo -n "."
+                sleep 1
+                sleepcount=`expr $sleepcount + 1`
+            done
+
+            sleepcount=0
+            docker exec -d $2 /usr/bin/tmux send-keys -t MCSV "stop" C-m
+            while [ $sleepcount -le 5 ]
+            do
+                echo -n "."
+                sleep 1
+                sleepcount=`expr $sleepcount + 1`
+            done
+            echo -e ""
+            echo "Shutdown complete of Minecraft Server"
+
+            # Forced stop after waiting for 10 seconds
+            timeout=10
+
+            for ((i=0; i<$timeout; i++))
+            do
+                STOP_EDITION=`sqlite3 /var/lib/mcsoc/mcsoc.sqlite3 <<END
+                select EDITION from container where NAME = "$2";
+END`
+                if [ "$STOP_EDITION" = "Bedrock" ]; then
+                    online2=`docker exec $2 /bin/bash -c "ps ax | grep *bedrock_server | grep -v grep | wc -l"`
+                else
+                    online2=`docker exec $2 /bin/bash -c "ps -ax | grep [j]ava | wc -l"`
+                fi
+                if [ $online2 -ge 1 ]; then
+                    sleep 5
+                    if [ $i -eq 9 ]; then
+                        echo "Unable to confirm Minecraft Java Server stop"
+                        echo "Please check tmux session"
+                    fi
+                else
+                    docker exec -d $2 /usr/bin/tmux kill-window -t MCSV
+                    docker stop $2 >/dev/null
+                    echo "[COMPLETE] Stop the $2 container"
+                    break
+                fi
+            done
+        fi
+    elif [ "$1" = "restart" ]; then
+        if [ "$2" = "" ]; then
+            echo "Rerun with container name"
+            exit 1
+        fi
+        # Restart container
+        echo "[Restart] $2 container"
+        docker restart $2 >/dev/null
+    fi
+}
+
+# 4. STATUS function
+func_status () {
+    if [ $1 = "status" ]; then
+        echo ""
+        echo "========================================================================"
+        echo "                            MCSOC Status"
+        echo "========================================================================"
+        echo ""
+        
+        # Container List
+        echo "-----               [Container Status of Operation]                -----"
+        docker ps -a
+        echo "------------------------------------------------------------------------"
+        echo ""
+
+        # Global Information of container
+        #echo "-----              [Global Information of container]               -----"
+        #docker system info
+        #echo "------------------------------------------------------------------------"
+        #echo ""
+
+        # Disk usage of container
+        echo "-----                 [Disk Usage of Container]                    -----"
+        docker system df
+        echo "------------------------------------------------------------------------"
+        echo ""
+
+        # Count using mcsoc configuration file
+        count_lt=`ls -1U /var/lib/mcsoc/mcsoc_archive/ | grep -v old | wc -l`
+        echo "[CURRENT] The number of mcsoc configuration file:     $count_lt"
+        echo "------------------------------------------------------------------------"
+        echo ""
+
+        # Count old mcsoc configuration file
+        count_lt=`ls -1U /var/lib/mcsoc/mcsoc_archive/old/ | wc -l`
+        echo "[OLD] The number of mcsoc configuration file:         $count_lt"
+        echo "------------------------------------------------------------------------"
+        echo ""
+        
+        # Backup directory usage
+        count_lt=`du -sh /backup/ms/ | awk '{print $1}'`
+        echo "[USAGE] Backup directory:                             $count_lt"
+
+        echo "------------------------------------------------------------------------"
+    elif [ $1 = "info" ]; then
+        echo ""
+        echo "========================================================================"
+        echo "                       Container Information"
+        echo "========================================================================"
+        echo ""
+        
+        # Container List
+        echo "-----                   [All Container List]                       -----"
+        sqlite3 /var/lib/mcsoc/mcsoc.sqlite3 '.headers on' '.mode column' 'select * from container'
+        echo "------------------------------------------------------------------------"
+    fi
+}
+
+# 6. MC_COMMAND function
+func_sc () {
+    online=`docker inspect --format='{{.State.Status}}' $1`
+    if [ $online != "running" ]; then
+        echo "$1 container is not running."
+    else
+        echo "SEND THE FOLLOWING COMMAND TO THE MINECRAFT SERVER"
+        echo "------"
+        echo "$2"
+        echo "------"
+        docker exec -d $1 /usr/bin/tmux send-keys -t MCSV "$2" C-m
+        echo "Complete"
+        echo "Please check the Minecraft Server shell of $1"
+    fi
+}
+
+# 7. UPDATE function
+func_update () {
+    if [ "$1" = "online" ]; then
+        touch /tmp/container_name.txt
+        echo $2 > /tmp/container_name.txt
+        /opt/mcsoc/scripts/update_mcsoc.sh -o        
+    elif [ "$1" = "" ]; then
+        echo "Invalid args."
+        echo "'mcsoc -h' to see USAGE"
+    else
+        touch /tmp/update_path.txt
+        echo $1 > /tmp/update_path.txt
+        touch /tmp/container_name.txt
+        echo $2 > /tmp/container_name.txt  
+        /opt/mcsoc/scripts/update_mcsoc.sh -f
+    fi
+}
+
+# 8. VERSION function
+func_version () {
+    if [ "$1" = "mcsoc" ]; then
+        echo "Minecraft Complex Server Operator for Container $VERSION"
+    elif [ "$1" = "ms" ]; then
+        MS_VERSION=`sqlite3 /var/lib/mcsoc/mcsoc.sqlite3 <<END
+        select VERSION from container where NAME = "$2";
+END`
+        MS_EDITION=`sqlite3 /var/lib/mcsoc/mcsoc.sqlite3 <<END
+        select EDITION from container where NAME = "$2";
+END`
+        echo "Container:            $2"
+        echo "$MS_EDITION server version:   $MS_VERSION"
+    fi
+}
+
+# 9. JUMP function
+func_jump () {
+    echo "=====   Connect container's Shell   ====="
+    docker exec -it $1 /bin/bash
+    echo "=====   END container's Shell   ====="
+}
+
+
+# 10. CACHE CLEAR:       Delete all old archive files
+func_cclear () {
+    echo "[DELETE]  Delete all old configuration files"
+    rm -rf /var/lib/mcsoc/mcsoc_archive/old/*
+    echo "Successfully remove old files!"
+}
+
+##################################################################
+#                               Main                             #
+##################################################################
+case $1 in
+    start | stop | restart ) func_lc $1 $2 ;;
+    create ) /opt/mcsoc/scripts/create_mcsoc.sh $2 $3 ;;
+    rm ) /opt/mcsoc/scripts/remove_mcsoc.sh -rc $2 ;;
+    rmi ) /opt/mcsoc/scripts/remove_mcsoc.sh -ri ;;
+    jump ) func_jump $2 ;;
+    backup ) /opt/mcsoc/scripts/backup_mcsoc.sh $2 $3 ;;
+    info ) func_status "info" ;;
+    com ) func_sc $2 $3 ;;
+    cache-clear ) func_cclear ;;
+
+    -s | --stat ) func_status "status" ;;
+    update ) func_update $2 $3;;
+    -v ) if [ $# -eq 2 ]; then func_version "ms" $2 ; else func_version "mcsoc"; fi ;;
+    -h ) usage ;;
+    * ) echo "Invalid argument"; usage ;;
+esac
