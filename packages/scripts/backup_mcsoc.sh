@@ -12,7 +12,7 @@
 #
 # PLEASE DO NOT EDIT
 #
-#                                               VERSION: 1.0
+#                                               VERSION: 1.0.1
 ########################################################################
 
 # read system files
@@ -47,7 +47,7 @@ full_backup () {
     echo "--- Full Backup for $1 container ---"
     echo "[LOTATE]  Check & Delete Backup file lotate"
     bkcount=`ls -1U /backup/ms/$1/full | wc -l`
-    if [ $bkcount -gt $FULL_BACKUP_ROTATE ]; then
+    if [ $bkcount -ge $FULL_BACKUP_ROTATE ]; then
         ls -1U -tr /backup/ms/$1/full | head -1 | xargs -I {} rm -f /backup/ms/$1/full/{}
     fi
 
@@ -121,7 +121,7 @@ instant_backup () {
     echo "--- Instant Backup for $1 container ---"
     echo "[LOTATE]  Check & Delete Backup file lotate"
     bkcount=`ls -1U /backup/ms/$1/instant | wc -l`
-    if [ $bkcount -gt $INSTANT_BACKUP_ROTATE ]; then
+    if [ $bkcount -ge $INSTANT_BACKUP_ROTATE ]; then
         ls -1U -tr /backup/ms/$1/instant | head -1 | xargs -I {} rm -f /backup/ms/$1/instant/{}
     fi
 

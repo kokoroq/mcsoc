@@ -1,0 +1,125 @@
+#!/bin/bash
+#
+#
+#
+########################################################################
+# Minecraft Complex Server Operator for Container (MCSOC)
+#
+# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+#
+#
+#                  Completion for MCSOC command
+#
+#
+# PLEASE DO NOT EDIT
+#
+#                                               VERSION: 1.0
+########################################################################
+
+#----------------------------------------------#
+#       Function of read container name        #
+#----------------------------------------------#
+func_read_contname () {
+    # Path for mcsoc database
+    SQLITE_DB_PATH="/var/lib/mcsoc/mcsoc.sqlite3"
+
+    while read -r name_field
+    do
+        READ_CONTAINER+=("$name_field")
+    done < <(sqlite3 -csv -noheader "$SQLITE_DB_PATH" "SELECT NAME FROM container;")
+}
+
+#----------------------------------------------#
+#              Main completion                 #
+#----------------------------------------------#
+
+_mcsoc () {
+
+    declare -a READ_CONTAINER
+    local cur prev words cword split
+    _init_completion || return
+
+    case $cword  in
+        1)
+            COMPREPLY=($(compgen -W 'create start stop restart rm rmi jump backup update com cache-clear info -s -v -h' -- "$cur")) 
+            return
+            ;;
+        2)
+            case ${words[1]} in
+                create)
+                    COMPREPLY=($(compgen -W 'be java' -- "$cur"))
+                    return
+                    ;;
+                start)
+                    func_read_contname
+                    COMPREPLY=($(compgen -W "${READ_CONTAINER[*]}" -- "$cur"))
+                    return
+                    ;;
+                stop)
+                    func_read_contname
+                    COMPREPLY=($(compgen -W "${READ_CONTAINER[*]}" -- "$cur"))
+                    return
+                    ;;
+                restart)
+                    func_read_contname
+                    COMPREPLY=($(compgen -W "${READ_CONTAINER[*]}" -- "$cur"))
+                    return
+                    ;;
+                rm)
+                    func_read_contname
+                    COMPREPLY=($(compgen -W "${READ_CONTAINER[*]}" -- "$cur"))
+                    return
+                    ;;
+                jump)
+                    func_read_contname
+                    COMPREPLY=($(compgen -W "${READ_CONTAINER[*]}" -- "$cur"))
+                    return
+                    ;;
+                backup)
+                    COMPREPLY=($(compgen -W 'full instant' -- "$cur"))
+                    return
+                    ;;
+                update)
+                    if [[ "$cur" == /* ]]; then
+                        _filedir
+                    else
+                        COMPREPLY=('online')
+                    fi
+                    return
+                    ;;
+                com)
+                    func_read_contname
+                    COMPREPLY=($(compgen -W "${READ_CONTAINER[*]}" -- "$cur"))
+                    return
+                    ;;
+                -v)
+                    func_read_contname
+                    COMPREPLY=($(compgen -W "${READ_CONTAINER[*]}" -- "$cur"))
+                    return
+                    ;;
+            esac
+            ;;
+        3)
+            case ${words[1]} in
+                create)
+                    _filedir
+                    ;;
+                backup)
+                    func_read_contname
+                    COMPREPLY=($(compgen -W "${READ_CONTAINER[*]}" -- "$cur"))
+                    return
+                    ;;
+                update)
+                    func_read_contname
+                    COMPREPLY=($(compgen -W "${READ_CONTAINER[*]}" -- "$cur"))
+                    return
+                    ;;
+            esac
+            ;;
+        *)
+            _filedir
+            ;;
+    esac
+}
+
+complete -F _mcsoc mcsoc

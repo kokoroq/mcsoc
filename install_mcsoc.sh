@@ -11,7 +11,7 @@
 #
 # PLEASE DO NOT EDIT
 #
-#                                               VERSION: 1.0
+#                                               VERSION: 1.0.3
 ########################################################################
 #
 # This script is a setup script for MCSOC
@@ -55,10 +55,12 @@ echo -e ""
 echo "USERNAME:     $USERNAME"
 echo "USERGROUP:    $USERNAME"
 echo -e ""
-read -p "[1] Do you want to add logged-in user to the docker group? *OPTION [y/n] > " ADD_GROUP_DOCKER
+echo "[1] Do you want to add logged-in user to the docker group? *OPTION [y/n]"
+echo "(If you did not add the user to the Docker group during the Docker installation, be sure to select 'YES')"
+read -p "> " ADD_GROUP_DOCKER
 echo "-----"
 echo "[2] Is your operating system Ubuntu or RHEL compatible(EL)?"
-read -p "(ubuntu/el) Default is ubuntu > " selectos
+read -p "[ubuntu/el] Default is ubuntu > " selectos
 if [ "$selectos" = "ubuntu" ] || [ "$selectos" = "" ]; then
     selectos="Ubuntu"
 elif [ "$selectos" = "el" ]; then
@@ -92,6 +94,7 @@ if [ $ADD_GROUP_DOCKER = "y" ] || [ $ADD_GROUP_DOCKER = "yes" ]; then
     CHECK_GROUP_DOCKER=`cat /etc/group | grep docker | wc -l`
     if [ $CHECK_GROUP_DOCKER -eq 0 ]; then
         sudo groupadd docker
+        newgrp docker
     fi
     sudo usermod -aG docker $USERNAME
     echo "Successfully add docker group"
@@ -223,6 +226,7 @@ sudo cp -p ./packages/etc/mcsoc.conf /etc/mcsoc/
 sudo chown $USERNAME:$USERNAME /etc/mcsoc/mcsoc.conf
 sudo cp -rpT ./packages/docker/ /opt/mcsoc/docker/
 sudo chown -R $USERNAME:$USERNAME /opt/mcsoc/docker/
+sudo cp -p ./packages/etc/_mcsoc /usr/share/bash-completion/completions/
 
 ##### FINISH #####
 echo "======================================================"

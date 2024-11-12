@@ -62,7 +62,7 @@ END`
     echo "[DELETE]  Delete container information"
     sqlite3 /var/lib/mcsoc/mcsoc.sqlite3 <<END
     delete from container where NAME = "$1";
-END`
+END
 
     echo "----------------------------"
     echo "Successfully remove container!"
@@ -125,7 +125,7 @@ END`
         echo "[DELETE]  Delete container information"
         sqlite3 /var/lib/mcsoc/mcsoc.sqlite3 <<END
         delete from container where NAME = "$GET_CONTAINER_NAME";
-END`
+END
         echo "--- Complete to delete '$GET_CONTAINER_NAME' ---"
 
         COUNT_CONTAINERS=`expr "$COUNT_CONTAINERS" - 1`

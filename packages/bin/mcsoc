@@ -55,7 +55,7 @@ usage () {
         mcsoc create java /tmp/serer.jar        Create Java server of container
         mcsoc start SAMPLE                      Start container
         mcsoc backup full SAMPLE                Full backup for container
-        mcsoc -u ./server.jar                   Update java server
+        mcsoc update ./server.jar SAMPLE        Update java server
 EOF
 }
 

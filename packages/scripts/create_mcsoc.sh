@@ -39,6 +39,12 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
     echo "Follow the instructions on the display"
     echo ""
     read -p "[1] Enter container name > " READ_CONT_NAME
+    if [[ $READ_CONT_NAME =~ .*(\.|\,|\-|\+|\*|\'|\"|\(|\)|\<|\>|\=|\^|\!|\/|\:|\;|\%|\||\[|\]) ]]; then
+        echo "Contains invalid strings"
+        echo "You cannot use SPECIAL CHARACTERS" 
+        echo "Please try again"
+        exit 1
+    fi
     echo "-----"
     read -p "[2] Enter the host port used by the server > " READ_HOST_PORT
     echo "-----"
@@ -153,7 +159,7 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
         sed -i -e "s/RESTART_PARAM=\"no\"/RESTART_PARAM=always/" /var/lib/mcsoc/mcsoc_archive/$READ_CONT_NAME/.env
     fi
     if [ "$1" = "java" ]; then
-        sed -i -e "s/MS_JAVA_MEM="1024M"/MS_JAVA_MEM=$READ_ASSIGN_MEM/" /var/lib/mcsoc/mcsoc_archive/$READ_CONT_NAME/.env
+        sed -i -e "s/MS_JAVA_MEM=\"1024M\"/MS_JAVA_MEM=$READ_ASSIGN_MEM/" /var/lib/mcsoc/mcsoc_archive/$READ_CONT_NAME/.env
     fi
     if [[ $TMP_APP_NAME = "minecraft_java_"*".tar.gz" ]]; then
         for filenm in $MS_JAVA_DIR/*.jar

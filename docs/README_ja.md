@@ -13,7 +13,7 @@
 ########################################################################
 -->
 
-# MCSOC     : A management tool of Minecraft server
+# MCSOC     : A management tool of Minecraft server for Container
 
 **MCSOC**は、コンテナベースで実行されるMinecraftサーバー(Bedrock / Java)を管理するコマンドラインツールです。
 
@@ -24,9 +24,11 @@
 
 # Requirement
 
-### OS (The list is confirmed)
+### Operating System
 - Linux
-    - Ubuntu 22.04
+    - The list is confirmed OS
+        - Ubuntu 22.04
+        - Ubuntu 24.04
 
 ### Packages :
 - Docker
@@ -42,7 +44,7 @@
 
 # Installation
 
-ダウンロードしたMCSOCのディレクトリ内にある`install_mcsoc.sh`を使用します。
+- ダウンロードしたMCSOCのディレクトリ内にある`install_mcsoc.sh`を使用します。
 
 ```bash
 ./install_mcsoc.sh
@@ -53,33 +55,34 @@
 
 サービスは`mcsoc`コマンドを通じて提供されます。<br><br>
 
-Minecraftサーバーを作成する際は`mcsoc create`コマンドを実行し、画面の指示に従って作成を進めてください。<br>
+- Minecraftサーバーを作成する際は`mcsoc create`コマンドを実行し、画面の指示に従って作成を進めてください。<br>
 その際、**Minecraftサーバーのアプリケーション**またはMCSOCで作成された**バックアップデータ**のパスを指定してください。<br>
-- 例: Java Editionをインストールする場合
+
+例: Java Editionをインストールする場合
 ```bash:
 mcsoc create java /tmp/server.jar
 ```
 <br>
 
-- 例: Bedrock Editionをインストールする場合
+例: Bedrock Editionをインストールする場合
 ```bash:
 mcsoc create be /tmp/bedrock-server-X.XX.XX.XX.zip
 ```
 <br>
 
-作成したサーバーを起動するには、コンテナ名を指定して`mcsoc start`コマンドを使用します。
+- 作成したサーバーを起動するには、コンテナ名を指定して`mcsoc start`コマンドを使用します。
 ```bash:
 mcsoc start my_server
 ```
 <br>
 
-起動しているサーバーを停止するには、コンテナ名を指定して`mcsoc stop`コマンドを使用します。
+- 起動しているサーバーを停止するには、コンテナ名を指定して`mcsoc stop`コマンドを使用します。
 ```bash:
 mcsoc stop my_server
 ```
 <br>
 
-作成したサーバーを削除するには、コンテナ名を指定して`mcsoc rm`コマンドを使用します。
+- 作成したサーバーを削除するには、コンテナ名を指定して`mcsoc rm`コマンドを使用します。
 ```bash:
 mcsoc rm my_server
 ```
@@ -87,7 +90,7 @@ mcsoc rm my_server
 
 ### Function
 
-サーバーでMinecraftコマンドを実行するには、`mcsoc com`コマンドを使用します。
+- サーバーでMinecraftコマンドを実行するには、`mcsoc com`コマンドを使用します。
 ```bash:
 mcsoc com my_server "say HELLO!"
 ```
@@ -95,34 +98,34 @@ mcsoc com my_server "say HELLO!"
 
 ### Backup
 
-MCSOCのバックアップは2種類の方法があります。
-- **FULL**: サーバーのすべてのデータをバックアップします。バックアップ時、サーバーは停止します。
-- **INSTANT**: サーバーの最低限のデータをバックアップします。バックアップ時、サーバーは停止しません。
-    - `mcsoc create`コマンドでサポートされるバックアップデータは**FULL**のみです。
+- MCSOCのバックアップは2種類の方法があります。
+    - **FULL**: サーバーのすべてのデータをバックアップします。バックアップ時、サーバーは停止します。
+    - **INSTANT**: サーバーの最低限のデータをバックアップします。バックアップ時、サーバーは停止しません。
+        - `mcsoc create`コマンドでサポートされるバックアップデータは**FULL**のみです。
+<br>
 
-手動でバックアップするには`mcsoc backup`コマンドを使用します。
+- 手動でバックアップするには`mcsoc backup`コマンドを使用します。
 ```bash:
 mcsoc backup full my_server
 ```
 
-サーバー作成時に定期的なバックアップを設定することもできます。<br>
-バックアップは、サーバー数に応じて以下のルールに従い実行されます。<br>
-- **FULL**:  週1回 / 6時～7時の間で1回実行
-- **INSTANT**: 毎日 / 3時～5時50分の間で1回実行
+- サーバー作成時に定期的なバックアップを設定することもできます。バックアップは、サーバー数に応じて以下のルールに従い実行されます。
+    - **FULL**:  週1回 / 6時～7時の間で1回実行
+    - **INSTANT**: 毎日 / 3時～5時50分の間で1回実行
 <br>
 
 ### Status
-MCSOCのステータスを確認するには`mcsoc -s`コマンドを使用します。
+- MCSOCのステータスを確認するには`mcsoc -s`コマンドを使用します。
 ```bash:
 mcsoc -s
 ```
-作成したサーバーの詳細情報を確認するには`mcsoc info`コマンドを使用します。
+- 作成したサーバーの詳細情報を確認するには`mcsoc info`コマンドを使用します。
 ```bash:
 mcsoc info
 ```
 
 ### Help
-`mcsoc`コマンドに関する詳細は、ヘルプを確認してください。
+- `mcsoc`コマンドに関する詳細は、ヘルプを確認してください。
 ```bash:
 mcsoc -h
 ```
@@ -130,7 +133,7 @@ mcsoc -h
 
 # Upgrade
 
-MCSOCのバージョンをアップグレードするには、新しいバージョンのディレクトリ内にある`upgrade_mcsoc.sh`を使用します。
+- MCSOCのバージョンをアップグレードするには、新しいバージョンのディレクトリ内にある`upgrade_mcsoc.sh`を使用します。
 
 ```bash
 ./upgrade_mcsoc.sh
@@ -139,7 +142,7 @@ MCSOCのバージョンをアップグレードするには、新しいバージ
 
 # Uninstallation
 
-MCSOCをアンインストールするには、`uninstall_mcsoc.sh`を使用します。
+- MCSOCをアンインストールするには、`uninstall_mcsoc.sh`を使用します。
 
 ```bash
 ./uninstall_mcsoc.sh

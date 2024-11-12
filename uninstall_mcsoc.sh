@@ -12,7 +12,7 @@
 #
 # PLEASE DO NOT EDIT
 #
-#                                               VERSION: 1.0
+#                                               VERSION: 1.0.3
 ########################################################################
 #
 # <!> ATTENTION
@@ -43,12 +43,26 @@ echo -e ""
 
 echo "Start the uninstallation process"
 echo "Do you really want to uninstall MCSOC?"
-read -p "(agree/back) Default is back: " usercfm
+read -p "[agree/back] Default is back: " usercfm
 
 if [ "$usercfm" != "agree" ]; then
     echo "Abort the process"
     sleep 2
     exit 0
+fi
+
+# If containers exist
+CONT_NUM=`docker ps -a | wc -l` >/dev/null 2>&1
+if [ $CONT_NUM -gt 1 ]; then
+    echo -e ""
+    echo "Containers exist"
+    read -p "Continue to uninstall MCSOC? [y/n] > " check_cont
+
+    if [[ $check_cont = [nN]* ]]; then
+        echo "Abort MCSOC install"
+        sleep 2
+        exit 0
+    fi
 fi
 
 # If the container is running, stop it
@@ -86,6 +100,12 @@ test -d /etc/mcsoc/
 if [ $? = 0 ]; then
     echo "- Remove /etc/mcsoc/"
     sudo rm -rf /etc/mcsoc/
+fi
+
+test -f /usr/share/bash-completion/completions/_mcsoc
+if [ $? = 0 ]; then
+    echo "- Remove /usr/share/bash-completion/completions/_mcsoc"
+    sudo rm -f /usr/share/bash-completion/completions/_mcsoc
 fi
 
 ##### FINISH #####
