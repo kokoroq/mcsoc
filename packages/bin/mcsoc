@@ -6,7 +6,7 @@ source /etc/mcsoc/mcsoc.conf
 ########################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                      MCSOC command
@@ -15,7 +15,7 @@ source /etc/mcsoc/mcsoc.conf
 #
 # PLEASE DO NOT EDIT
 #
-#                                               VERSION: 1.0
+#                                               VERSION: 1.1.0
 ########################################################################
 
 #
@@ -31,7 +31,7 @@ usage () {
         -s | --stat                             Display current mcsoc & container status
         -v (CONTAINER_NAME)                     Display MCSOC version
                                                 If 'CONTAINER_NAME' is added, Display Minecraft server version
-        -h                                      Display MCSO help
+        -h                                      Display MCSOC help
 
     < COMMAND >
         create [be/java] FILE_PATH                  Build container image and create container
@@ -39,7 +39,7 @@ usage () {
         start CONTAINER_NAME                        Start container
         stop CONTAINER_NAME                         Stop container
         restart CONTAINER_NAME                      Restart container
-        rm CONTAINER_NAME                           Delete container
+        rm CONTAINER_NAME / [all]                   Delete container
         rmi                                         Delete all container images
         jump CONTAINER_NAME                         Connect to the container's shell
         backup [full/instant] CONTAINER_NAME        Backup for container, Add 'full' or 'instant' after 'backup'
@@ -99,7 +99,7 @@ func_lc () {
             echo -n "Announcing to users..."
 
             sleepcount=0
-            docker exec -d $2 /usr/bin/tmux send-keys -t MCSV "say The Server stops after 20 seconds. Please SAVE immediately!" C-m
+            docker exec -d $2 /usr/bin/tmux send-keys -t MCSV "say This Server stops after 20 seconds. Please SAVE immediately!" C-m
             while [ $sleepcount -le 20 ]
             do
                 echo -n "."
@@ -268,7 +268,7 @@ END`
         MS_EDITION=`sqlite3 /var/lib/mcsoc/mcsoc.sqlite3 <<END
         select EDITION from container where NAME = "$2";
 END`
-        echo "Container:            $2"
+        echo "Container:             $2"
         echo "$MS_EDITION server version:   $MS_VERSION"
     fi
 }

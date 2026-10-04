@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+#
+#
+########################################################################
+# Minecraft Complex Server Operator for Container (MCSOC)
+#
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
+#
+#
+#                  Completion for mcsocremote command
+#
+#
+# PLEASE DO NOT EDIT
+#
+#                                               VERSION: 1.0
+########################################################################
+
+
+#----------------------------------------------#
+#              Main completion                 #
+#----------------------------------------------#
+
+_mcsocremote () {
+
+    local cur prev words cword split
+    _init_completion || return
+
+    case $cword  in
+        1)
+            COMPREPLY=($(compgen -W 'create start stop restart rm rmi jump backup update com cache-clear info -s -v -h -hm' -- "$cur")) 
+            return
+            ;;
+        2)
+            case ${words[1]} in
+                create)
+                    COMPREPLY=($(compgen -W 'be java' -- "$cur"))
+                    return
+                    ;;
+                backup)
+                    COMPREPLY=($(compgen -W 'full instant' -- "$cur"))
+                    return
+                    ;;
+                update)
+                    if [[ "$cur" == /* ]]; then
+                        _filedir
+                    else
+                        COMPREPLY=('online')
+                    fi
+                    return
+                    ;;
+            esac
+            ;;
+        3)
+            case ${words[1]} in
+                create)
+                    _filedir
+                    ;;
+            esac
+            ;;
+        *)
+            _filedir
+            ;;
+    esac
+}
+
+complete -F _mcsocremote mcsocremote

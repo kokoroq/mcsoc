@@ -3,7 +3,7 @@
 ########################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                      MCSOC Install Tool
@@ -11,7 +11,7 @@
 #
 # PLEASE DO NOT EDIT
 #
-#                                               VERSION: 1.0.3
+#                                               VERSION: 1.1.0
 ########################################################################
 #
 # This script is a setup script for MCSOC
@@ -23,7 +23,6 @@
 # To install MCSOC
 # ./install_mcsoc.sh
 #
-
 # read mcsoc.conf
 source ./packages/etc/mcsoc.conf
 
@@ -133,9 +132,17 @@ test -d /var/log/mcsoc/
 if [ $? = 1 ];then sudo mkdir -p /var/log/mcsoc/;fi
 sudo chown -R $USERNAME:$USERNAME /var/log/mcsoc/
 
+test -d /var/log/mcsocremote/
+if [ $? = 1 ];then sudo mkdir -p /var/log/mcsocremote/;fi
+sudo chown -R $USERNAME:$USERNAME /var/log/mcsocremote/
+
 test -d /etc/mcsoc/
 if [ $? = 1 ];then sudo mkdir -p /etc/mcsoc/;fi
 sudo chown -R $USERNAME:$USERNAME /etc/mcsoc/
+
+test -d /etc/mcsoc/.config
+if [ $? = 1 ];then sudo mkdir -p /etc/mcsoc/.config;fi
+sudo chown -R $USERNAME:$USERNAME /etc/mcsoc/.config
 
 test -d /backup/ms/
 if [ $? = 1 ];then sudo mkdir -p /backup/ms/;fi
@@ -211,8 +218,9 @@ sqlite3 /var/lib/mcsoc/mcsoc.sqlite3 \
 #-----------------------------------------------------------------#
 echo "[INSTALL]     MCSOC package"
 
-sudo cp -p ./packages/bin/mcsoc /usr/local/bin/
-sudo chmod +x /usr/local/bin/mcsoc
+sudo cp -p ./packages/bin/* /usr/bin/
+sudo chmod +x /usr/bin/mcsoc
+sudo chmod +x /usr/bin/mcsocremote
 sudo cp -rpT ./packages/scripts/  /opt/mcsoc/scripts/
 sudo chmod +x /opt/mcsoc/scripts/backup_mcsoc.sh
 sudo chown $USERNAME:$USERNAME /opt/mcsoc/scripts/backup_mcsoc.sh
@@ -224,9 +232,13 @@ sudo chmod +x /opt/mcsoc/scripts/update_mcsoc.sh
 sudo chown $USERNAME:$USERNAME /opt/mcsoc/scripts/update_mcsoc.sh
 sudo cp -p ./packages/etc/mcsoc.conf /etc/mcsoc/
 sudo chown $USERNAME:$USERNAME /etc/mcsoc/mcsoc.conf
+sudo cp -p ./packages/etc/.config/remote.conf /etc/mcsoc/.config/
+sudo chown $USERNAME:$USERNAME /etc/mcsoc/.config/remote.conf
+sudo cp -p ./packages/etc/.config/user.conf /etc/mcsoc/.config/
+sudo chown $USERNAME:$USERNAME /etc/mcsoc/.config/user.conf
 sudo cp -rpT ./packages/docker/ /opt/mcsoc/docker/
 sudo chown -R $USERNAME:$USERNAME /opt/mcsoc/docker/
-sudo cp -p ./packages/etc/_mcsoc /usr/share/bash-completion/completions/
+sudo cp -p ./packages/completions/* /usr/share/bash-completion/completions/
 
 ##### FINISH #####
 echo "======================================================"

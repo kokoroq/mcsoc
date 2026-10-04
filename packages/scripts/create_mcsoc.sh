@@ -2,7 +2,7 @@
 ########################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                       MCSOC Script
@@ -15,7 +15,7 @@
 ########################################################################
 
 # read system files
-source /etc/mcsoc/mcsoc.conf
+source /etc/mcsoc/.config/user.conf
 
 # Login user
 USERNAME=`logname`
@@ -38,7 +38,8 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
     echo "========================================================================="
     echo "Follow the instructions on the display"
     echo ""
-    read -p "[1] Enter container name > " READ_CONT_NAME
+    echo -n "[1] Enter container name > "
+    read READ_CONT_NAME
     if [[ $READ_CONT_NAME =~ .*(\.|\,|\-|\+|\*|\'|\"|\(|\)|\<|\>|\=|\^|\!|\/|\:|\;|\%|\||\[|\]) ]]; then
         echo "Contains invalid strings"
         echo "You cannot use SPECIAL CHARACTERS" 
@@ -46,16 +47,19 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
         exit 1
     fi
     echo "-----"
-    read -p "[2] Enter the host port used by the server > " READ_HOST_PORT
+    echo -n "[2] Enter the host port used by the server > "
+    read READ_HOST_PORT
     echo "-----"
-    read -p "[3] Do you want to enable the auto-start setting? [y/n] > " READ_AUTOSTART
+    echo -n "[3] Do you want to enable the auto-start setting? [y/n] > "
+    read READ_AUTOSTART
     if [[ $READ_AUTOSTART = [yY]* ]]; then
         READ_AUTOSTART="Enable"
     else
         READ_AUTOSTART="Disable"
     fi
     echo "-----"
-    read -p "[4] Do you want to enable scheduled backup? [y/n] > " READ_BACKUP
+    echo -n "[4] Do you want to enable scheduled backup? [y/n] > "
+    read READ_BACKUP
     if [[ $READ_BACKUP = [yY]* ]]; then
         READ_BACKUP="Enable"
     else
@@ -63,7 +67,8 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
     fi
     if [ $EDITION_NAME = "Java" ]; then
         echo "-----"
-        read -p "[5] Enter the amount of memory used by the server (e.g. 1024M) > " READ_ASSIGN_MEM
+        echo -n "[5] Enter the amount of memory used by the server (e.g. 1024M) > "
+        read READ_ASSIGN_MEM
     fi
     echo "-----"
     echo "Please make sure you have the correct information."
@@ -77,7 +82,8 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
         echo "- Amount memory:    $READ_ASSIGN_MEM"
     fi
     echo -e ""
-    read -p "Okey? [y/n] > " CHECK_PARM1
+    echo -n "Okey? [y/n] > "
+    read CHECK_PARM1
     if [[ $CHECK_PARM1 != [yY]* ]]; then
         echo "Try again..."
         exit 1
@@ -91,7 +97,8 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
     if [[ $TMP_APP_NAME = *".zip" ]]; then
         VERSION_INFO=`echo $TMP_APP_NAME | sed -r "s/bedrock-server-(.*)\.zip$/\1/"`
         if [ $VERSION_INFO = "" ]; then
-            read -p  "Enter the Minecraft server version *OPTION*" VERSION_INFO
+            echo -n "Enter the Minecraft server version *OPTION*"
+            read VERSION_INFO
             if [ $VERSION_INFO = "" ]; then
                 VERSION_INFO="NO DATA"
             fi
@@ -100,7 +107,8 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
     elif [[ $TMP_APP_NAME = *".jar" ]]; then
         VERSION_INFO=`echo $TMP_APP_NAME | sed  -r "s/minecraft_server\.(.*)\.jar$/\1/"`
         if [ $VERSION_INFO = "" ]; then
-            read -p  "Enter the Minecraft server version *OPTION*" VERSION_INFO
+            echo -n "Enter the Minecraft server version *OPTION*"
+            read VERSION_INFO
             if [ $VERSION_INFO = "" ]; then
                 VERSION_INFO="NO DATA"
             fi
@@ -132,7 +140,8 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
             echo $VERSION_INFO > /var/lib/mcsoc/mcsoc_archive/$READ_CONT_NAME/mcsv/app/version_info.txt
             rm -f /var/lib/mcsoc/mcsoc_archive/$READ_CONT_NAME/mcsv/app/java_version.txt
         else
-            read -p  "Enter the Minecraft server version *OPTION*" VERSION_INFO
+            echo -n "Enter the Minecraft server version *OPTION*"
+            read VERSION_INFO
             if [ $VERSION_INFO = "" ]; then
                 VERSION_INFO="NO DATA"
                 touch /var/lib/mcsoc/mcsoc_archive/$READ_CONT_NAME/mcsv/app/version_info.txt
@@ -183,23 +192,23 @@ if [[ $TMP_APP_NAME = *".zip" ]] || [[ $TMP_APP_NAME = *".jar" ]] || [[ $TMP_APP
 
         # Entry cron configuration
         crontab -l > setup.crontab
-        echo "$BK_MINUTE_FULL $BK_HOUR_FULL * * $BK_WEEK_FULL /usr/local/bin/mcsoc backup full $READ_CONT_NAME" >> setup.crontab
-        echo "$BK_MINUTE_INSTANT $BK_HOUR_INSTANT * * $BK_WEEK_INSTANT /usr/local/bin/mcsoc backup instant $READ_CONT_NAME" >> setup.crontab
+        echo "$BK_MINUTE_FULL $BK_HOUR_FULL * * $BK_WEEK_FULL /usr/bin/mcsoc backup full $READ_CONT_NAME" >> setup.crontab
+        echo "$BK_MINUTE_INSTANT $BK_HOUR_INSTANT * * $BK_WEEK_INSTANT /usr/bin/mcsoc backup instant $READ_CONT_NAME" >> setup.crontab
         crontab setup.crontab
         rm -f setup.crontab
 
         # Edit next parameter
         if [ $FULL_BK_PROFILE -eq 49 ]; then
-            sed -i -e "s/FULL_BK_PROFILE=$FULL_BK_PROFILE/FULL_BK_PROFILE=1/" /etc/mcsoc/mcsoc.conf
+            sed -i -e "s/FULL_BK_PROFILE=$FULL_BK_PROFILE/FULL_BK_PROFILE=1/" /etc/mcsoc/.config/user.conf
         else
             NEXT_PROFILE=$(( $FULL_BK_PROFILE + 1 ))
-            sed -i -e "s/FULL_BK_PROFILE=$FULL_BK_PROFILE/FULL_BK_PROFILE=$NEXT_PROFILE/" /etc/mcsoc/mcsoc.conf
+            sed -i -e "s/FULL_BK_PROFILE=$FULL_BK_PROFILE/FULL_BK_PROFILE=$NEXT_PROFILE/" /etc/mcsoc/.config/user.conf
         fi
         if [ $INSTANT_BK_PROFILE -eq 18 ]; then
-            sed -i -e "s/INSTANT_BK_PROFILE=$INSTANT_BK_PROFILE/INSTANT_BK_PROFILE=1/" /etc/mcsoc/mcsoc.conf
+            sed -i -e "s/INSTANT_BK_PROFILE=$INSTANT_BK_PROFILE/INSTANT_BK_PROFILE=1/" /etc/mcsoc/.config/user.conf
         else
             NEXT_PROFILE=$(( $INSTANT_BK_PROFILE + 1 ))
-            sed -i -e "s/INSTANT_BK_PROFILE=$INSTANT_BK_PROFILE/INSTANT_BK_PROFILE=$NEXT_PROFILE/" /etc/mcsoc/mcsoc.conf
+            sed -i -e "s/INSTANT_BK_PROFILE=$INSTANT_BK_PROFILE/INSTANT_BK_PROFILE=$NEXT_PROFILE/" /etc/mcsoc/.config/user.conf
         fi
     fi
 

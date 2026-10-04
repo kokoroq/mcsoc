@@ -2,7 +2,7 @@
 ########################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                       MCSOC Script
@@ -72,7 +72,8 @@ END
 func_remove_cont_all () {
     echo "< ATTENTION! >"
     echo "This command will delete 'ALL' containers."
-    read -p "Do you really want to delete? [y/n] >" REMOVE_AGREEMENT
+    echo -n "Do you really want to delete? [y/n] >"
+    read REMOVE_AGREEMENT
 
     if [[ $REMOVE_AGREEMENT != [yY]* ]]; then
         echo "Abort delete container"

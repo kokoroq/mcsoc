@@ -3,7 +3,7 @@
 ########################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                       MCSOC Script
@@ -12,11 +12,11 @@
 #
 # PLEASE DO NOT EDIT
 #
-#                                               VERSION: 1.0.1
+#                                               VERSION: 1.1.0
 ########################################################################
 
 # read system files
-source /etc/mcsoc/mcsoc.conf
+source /etc/mcsoc/.config/user.conf
 
 # Time
 TIME=`date "+%Y%m%d_%H%M%S"`
@@ -57,7 +57,7 @@ full_backup () {
     online=`docker inspect --format='{{.State.Status}}' $1`
     if [ $online != "running" ]; then
         echo "[START]   Start the $1 container..."
-        /usr/local/bin/mcsoc start $1 > /dev/null
+        /usr/bin/mcsoc start $1 > /dev/null
         stopcount=1
     fi
 
@@ -85,10 +85,12 @@ full_backup () {
         rm -f /backup/ms/$1/full/$FULLBK_DIR/bedrock-server-*.zip
     fi
 
-    if [ ! -e /backup/ms/$1/full/$FULLBK_DIR/version_info.txt ]; then
-        touch /backup/ms/$1/full/$FULLBK_DIR/version_info.txt
-        echo $VERSION_INFO > /backup/ms/$1/$FULLBK_DIR/version_info.txt
+    if [ -e /backup/ms/$1/full/$FULLBK_DIR/version_info.txt ]; then
+        rm -f /backup/ms/$1/full/$FULLBK_DIR/version_info.txt
     fi
+    touch /backup/ms/$1/full/$FULLBK_DIR/version_info.txt
+    echo $VERSION_INFO > /backup/ms/$1/full/$FULLBK_DIR/version_info.txt
+
     tar -C /backup/ms/$1/full -zcf /backup/ms/$1/full/$FULLBK_DIR.tar.gz $FULLBK_DIR >/dev/null
     rm -rf /backup/ms/$1/full/$FULLBK_DIR
 
@@ -185,5 +187,5 @@ instant_backup () {
 case $1 in
     full ) full_backup $2 ;;
     instant ) instant_backup $2 ;;
-    * ) echo "Invalid argument"; /usr/local/bin/mcsoc -h ;;
+    * ) echo "Invalid argument"; /usr/bin/mcsoc -h ;;
 esac

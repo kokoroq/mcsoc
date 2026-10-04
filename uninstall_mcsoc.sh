@@ -4,7 +4,7 @@
 ########################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                      MCSOC Uninstall Tool
@@ -12,7 +12,7 @@
 #
 # PLEASE DO NOT EDIT
 #
-#                                               VERSION: 1.0.3
+#                                               VERSION: 1.1.0
 ########################################################################
 #
 # <!> ATTENTION
@@ -26,7 +26,7 @@
 usercfm="back"
 
 # read mcso.conf
-source ./etc/mcsoc/mcsoc.conf
+source /etc/mcsoc/mcsoc.conf
 
 # Confirm to start uninstall process
 clear
@@ -52,13 +52,16 @@ if [ "$usercfm" != "agree" ]; then
 fi
 
 # If containers exist
-CONT_NUM=`docker ps -a | wc -l` >/dev/null 2>&1
+CONT_NUM=$(docker ps -a 2>/dev/null | wc -l)
 if [ $CONT_NUM -gt 1 ]; then
     echo -e ""
     echo "Containers exist"
+    echo "To proceed with the uninstallation, delete all MCSOC containers."
     read -p "Continue to uninstall MCSOC? [y/n] > " check_cont
 
-    if [[ $check_cont = [nN]* ]]; then
+    if [[ $check_cont = [yY]* ]]; then
+        mcsoc rm all
+    else
         echo "Abort MCSOC install"
         sleep 2
         exit 0
@@ -75,10 +78,16 @@ echo " < When the dialog box of 'sudo' appears, please enter user password > "
 # Uninstall files / 
 echo "-----  Uninstall MCSOC  -----"
 
-test -f /usr/local/bin/mcsoc
+test -f /usr/bin/mcsoc
 if [ $? = 0 ]; then
-    echo "- Remove /usr/local/bin/mcsoc"
-    sudo rm -f /usr/local/bin/mcsoc
+    echo "- Remove /usr/bin/mcsoc"
+    sudo rm -f /usr/bin/mcsoc
+fi
+
+test -f /usr/bin/mcsocremote
+if [ $? = 0 ]; then
+    echo "- Remove /usr/bin/mcsocremote"
+    sudo rm -f /usr/bin/mcsocremote
 fi
 
 test -d /opt/mcsoc/
@@ -106,6 +115,12 @@ test -f /usr/share/bash-completion/completions/_mcsoc
 if [ $? = 0 ]; then
     echo "- Remove /usr/share/bash-completion/completions/_mcsoc"
     sudo rm -f /usr/share/bash-completion/completions/_mcsoc
+fi
+
+test -f /usr/share/bash-completion/completions/_mcsocremote
+if [ $? = 0 ]; then
+    echo "- Remove /usr/share/bash-completion/completions/_mcsocremote"
+    sudo rm -f /usr/share/bash-completion/completions/_mcsocremote
 fi
 
 ##### FINISH #####

@@ -1,7 +1,7 @@
 ##################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                 Dockerfile for Bedrock Edition
@@ -16,13 +16,13 @@
 
 
 #----------------------------------------------------------------#
-#   BASE:       Ubuntu 22.04
+#   BASE:       Ubuntu 26.04
 #   PACKAGE:    tmux & tzdata & libcurl4
 #   COPY:       Minecraft Server in app dir
 #----------------------------------------------------------------#
 
 # Base image
-FROM ubuntu:22.04
+FROM ubuntu:26.04
 
 # Dependent package
 RUN apt-get update; \

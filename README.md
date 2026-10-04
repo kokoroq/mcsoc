@@ -2,7 +2,7 @@
 ########################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                       README - English                      
@@ -22,6 +22,10 @@
 - **Simple Backup** : Automatic or Manual backup. Of course, servers can also be restored
 <br>
 
+# Support Minecraft version
+- 26.X
+- 1.21.X
+
 # Requirement
 
 ### Operating System
@@ -29,6 +33,7 @@
     - The list is confirmed OS
         - Ubuntu 22.04
         - Ubuntu 24.04
+        - Ubuntu 26.04
 
 ### Packages :
 - Docker
@@ -44,10 +49,12 @@
 
 # Installation
 
-- Use `install_mcsoc.sh` in the downloaded MCSOC directory.
+- Use `apt` to install MCSOC.<br>
+Before installing the package, please make sure Docker is installed.
 
 ```bash
-./install_mcsoc.sh
+apt update
+apt install ./mcsoc_X.X.X-1_all.deb
 ```
 <br>
 
@@ -136,24 +143,24 @@ mcsoc -h
 
 # Upgrade
 
-- To upgrade the MCSOC version, use `upgrade_mcsoc.sh` in the directory of the new version.
+- To upgrade the MCSOC version, use `dpkg`
 
 ```bash
-./upgrade_mcsoc.sh
+dpkg -i ./mcsoc_X.X.X-1_all.deb
 ```
 <br>
 
 # Uninstallation
 
-- To uninstall MCSOC, use `uninstall_mcsoc.sh`.
+- To uninstall MCSOC, use `apt`.
 
 ```bash
-./uninstall_mcsoc.sh
+apt purge mcsoc
 ```
 
 # Language
 
- **[Japanese - 日本語](https://github.com/kokoroq/mcsoc/blob/main/docs/README_ja.md)**
+ **[Japanese - 日本語](./docs/README_ja.md)**
 
 # Support
 
@@ -161,4 +168,4 @@ Contact: kokoroq
 
 # License
 
-MCSOC is distributed under `MIT License`. See [LICENSE](https://github.com/kokoroq/mcsoc/blob/main/LICENSE)
+MCSOC is distributed under `BSD License`. See [LICENSE](./LICENSE)

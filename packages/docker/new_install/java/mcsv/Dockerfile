@@ -1,7 +1,7 @@
 ##################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                 Dockerfile for Java Edition
@@ -11,22 +11,22 @@
 # PLEASE DO NOT EDIT
 # Use with compose.yaml
 #
-#                                               VERSION: 1.0
+#                                               VERSION: 1.1
 ##################################################################
 
 
 #----------------------------------------------------------------#
-#   BASE:       Ubuntu 22.04
-#   PACKAGE:    OpenJDK 21 & tmux & tzdata
+#   BASE:       Ubuntu 26.04
+#   PACKAGE:    OpenJDK 25 & tmux & tzdata
 #   COPY:       Minecraft Server in app dir
 #----------------------------------------------------------------#
 
 # Base image
-FROM ubuntu:22.04
+FROM ubuntu:26.04
 
 # Dependent package
 RUN apt-get update; \
-    apt-get install -y openjdk-21-jre-headless tmux tzdata; \
+    apt-get install -y openjdk-25-jre-headless tmux tzdata; \
     ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime; \
     mkdir /tmp/mcsoc_install/;
 

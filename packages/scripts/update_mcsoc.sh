@@ -3,7 +3,7 @@
 ########################################################################
 # Minecraft Complex Server Operator for Container (MCSOC)
 #
-# Copyright (c) 2023-2024 kokoroq. All rights reserved.
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
 #
 #
 #                       MCSOC Script
@@ -17,73 +17,141 @@
 
 #       VARS        #
 
+DB="/var/lib/mcsoc/mcsoc.sqlite3"
+NEW_DIR="/tmp/new_server"
+
 # Set container name
-CONTAINER_NAME=`head -n 1 /tmp/container_name.txt`
+if [ ! -s /tmp/container_name.txt ]; then
+    echo "[ERROR] /tmp/container_name.txt not found"
+    exit 1
+fi
+CONTAINER_NAME=$(head -n 1 /tmp/container_name.txt)
 rm -f /tmp/container_name.txt
+# Escape single quotes for SQL
+SQL_NAME=${CONTAINER_NAME//\'/\'\'}
 
 # Set edition
-EDITION_NAME=`sqlite3 /var/lib/mcsoc/mcsoc.sqlite3<<END
-select EDITION from container where NAME = "$CONTAINER_NAME";
-END`
+EDITION_NAME=$(sqlite3 "$DB" "select EDITION from container where NAME = '$SQL_NAME';")
+if [ "$EDITION_NAME" != "Bedrock" ] && [ "$EDITION_NAME" != "Java" ]; then
+    echo "[ERROR] Unknown edition for container: $CONTAINER_NAME"
+    exit 1
+fi
+
+if [ "$EDITION_NAME" = "Java" ]; then
+    APP_DIR="/opt/minecraft/java"
+else
+    APP_DIR="/opt/minecraft/be"
+fi
+
+# Always remove the temporary application dir on exit (success or failure)
+trap 'rm -rf "$NEW_DIR"' EXIT
+
+#####################
+
+#     Helpers       #
+
+# Number of running server processes inside the container
+count_server_procs () {
+    local n
+    if [ "$EDITION_NAME" = "Bedrock" ]; then
+        n=$(docker exec "$CONTAINER_NAME" /bin/bash -c "ps ax | grep '[b]edrock_server' | wc -l")
+    else
+        n=$(docker exec "$CONTAINER_NAME" /bin/bash -c "ps ax | grep '[j]ava' | wc -l")
+    fi
+    echo "${n:-0}"
+}
+
+start_server () {
+    if [ "$EDITION_NAME" = "Bedrock" ]; then
+        docker exec "$CONTAINER_NAME" /usr/bin/tmux send-keys -t MCSV "cd $APP_DIR && LD_LIBRARY_PATH=. ./bedrock_server" C-m
+    else
+        MS_JAVA_MEM=$(sqlite3 "$DB" "select MEMORY from container where NAME = '$SQL_NAME';")
+        docker exec "$CONTAINER_NAME" /usr/bin/tmux send-keys -t MCSV "cd $APP_DIR && java -Xmx${MS_JAVA_MEM} -Xms${MS_JAVA_MEM} -jar *.jar nogui" C-m
+    fi
+}
+
+# Abort the update. Restart the (still untouched) old server if it was running.
+abort_update () {
+    echo "[ERROR] $1"
+    echo "Update aborted."
+    if [ "${online2:-0}" -ge 1 ]; then
+        echo "- Restart Minecraft server"
+        start_server
+    fi
+    exit 1
+}
+
+check_version () {
+    if [[ ! "$1" =~ ^[A-Za-z0-9._-]+$ ]]; then
+        echo "[ERROR] Invalid version string: '$1'"
+        exit 1
+    fi
+}
+
+download_failed () {
+    echo "Download failed..."
+    echo "Stop update"
+    sleep 2
+    exit 1
+}
 
 #####################
 
 # Function for start
 func_online_download () {
-    # BE or JAVA 
-    echo "Download appication from Internet"
-    mkdir /tmp/update_dir >/dev/null 2>&1
+    # BE or JAVA
+    echo "Download application from Internet"
+    rm -rf "$NEW_DIR"
+    mkdir -p "$NEW_DIR"
     if [ "$EDITION_NAME" = "Bedrock" ]; then
         # Download process
-        echo "Enter the 'URL' of the Minecraft Bedrock server application"
-        read -p "> " be_url
+        read -rp "Enter the 'URL' of the Minecraft Bedrock server application > " be_url
         echo "Now Downloading..."
-        wget -v -P /tmp/update_dir $be_url
-        test -f /tmp/update_dir/bedrock-server*.zip
-        if [ $? -eq 0 ];then
+        # minecraft.net rejects wget's default User-Agent (HTTP 403)
+        wget -v -P "$NEW_DIR" --user-agent="Mozilla/5.0" "$be_url"
+        app_file=$(ls "$NEW_DIR"/bedrock-server-*.zip 2>/dev/null | head -n 1)
+        if [ -n "$app_file" ]; then
             echo "Download successfully!"
-            app_name=`basename /tmp/update_dir/bedrock-server*.zip`
-            VERSION_NAME=`echo $app_name | sed -r "s/bedrock-server-(.*)\.zip$/\1/"`
+            app_name=$(basename "$app_file")
+            VERSION_NAME=$(echo "$app_name" | sed -r "s/bedrock-server-(.*)\.zip$/\1/")
         else
-            echo "Download failed..."
-            echo "Stop update"
-            rm -rf /tmp/update_dir
-            sleep 2
-            exit 1
+            download_failed
         fi
-    elif [ "$EDITION_NAME" = "Java" ]; then
+    else
         # Download process
-        echo "Enter the version to download new minecraft server application"
-        read -p "> " VERSION_NAME
-        echo -e "\n"
-        echo "Enter the 'URL' of the Minecraft Java server application"
-        read -p "> " java_url
+        read -rp "Enter the version to download new minecraft server application > " VERSION_NAME
+        check_version "$VERSION_NAME"
+        echo
+        read -rp "Enter the 'URL' of the Minecraft Java server application > " java_url
         echo "Now Downloading..."
-        wget -v -P /tmp/update_dir $java_url
-        test -f /tmp/update_dir/server.jar
-        if [ $? -eq 0 ];then
+        wget -v -O "$NEW_DIR/server.jar" "$java_url"
+        if [ -s "$NEW_DIR/server.jar" ]; then
             echo "Download successfully!"
-            mv /tmp/update_dir/server.jar "/tmp/update_dir/minecraft_server."$VERSION_NAME".jar"
+            mv "$NEW_DIR/server.jar" "$NEW_DIR/minecraft_server.$VERSION_NAME.jar"
         else
-            echo "Download failed..."
-            echo "Stop update"
-            rm -rf /tmp/update_dir
-            sleep 2
-            exit 1
+            download_failed
         fi
     fi
+    check_version "$VERSION_NAME"
 }
 
 func_local_repository () {
     # Found application path
-    mkdir /tmp/update_dir >/dev/null 2>&1
-    while read LINE
-    do
-        app_path=$LINE
-    done < /tmp/update_path.txt
+    rm -rf "$NEW_DIR"
+    mkdir -p "$NEW_DIR"
+    if [ ! -s /tmp/update_path.txt ]; then
+        echo "[ERROR] /tmp/update_path.txt not found"
+        exit 1
+    fi
+    app_path=$(head -n 1 /tmp/update_path.txt)
     rm -f /tmp/update_path.txt
-    app_name=`basename $app_path`
-    mv $app_path /tmp/update_dir
+    if [ ! -f "$app_path" ]; then
+        echo "[ERROR] File not found: $app_path"
+        exit 1
+    fi
+    app_name=$(basename "$app_path")
+
+    # Check edition BEFORE touching the file
     if [ "$EDITION_NAME" = "Bedrock" ] && [[ "$app_name" = *".jar" ]]; then
         echo "The version to be updated does not match the existing edition"
         echo "Please select the appropriate new version edition"
@@ -93,37 +161,44 @@ func_local_repository () {
         echo "Please select the appropriate new version edition"
         exit 1
     fi
+
+    # NOTE: copy (not move) so the user's original file is never lost
     if [[ "$app_name" = *".jar" ]] && [[ "$app_name" != "minecraft_server."*".jar" ]]; then
         echo "--- Check Java application Version ---"
-        echo "Enter the version of new minecraft server application"
-        read -p "> " VERSION_NAME
-        mv /tmp/update_dir/$app_name /tmp/update_dir/minecraft_server."$VERSION_NAME".jar
+        read -rp "Enter the version of new minecraft server application > " VERSION_NAME
+        check_version "$VERSION_NAME"
+        cp "$app_path" "$NEW_DIR/minecraft_server.$VERSION_NAME.jar" || exit 1
     elif [[ "$app_name" = "minecraft_server."*".jar" ]]; then
-        VERSION_NAME=`echo $app_name | sed  -r "s/minecraft_server\.(.*)\.jar$/\1/"`
+        VERSION_NAME=$(echo "$app_name" | sed -r "s/minecraft_server\.(.*)\.jar$/\1/")
+        cp "$app_path" "$NEW_DIR/$app_name" || exit 1
     elif [[ "$app_name" = "bedrock-server-"*".zip" ]]; then
-        VERSION_NAME=`echo $app_name | sed -r "s/bedrock-server-(.*)\.zip$/\1/"`
+        VERSION_NAME=$(echo "$app_name" | sed -r "s/bedrock-server-(.*)\.zip$/\1/")
+        cp "$app_path" "$NEW_DIR/$app_name" || exit 1
     else
         echo "This file is not update file"
         echo "Please check it"
-        rm -rf /tmp/update_dir
         sleep 2
         exit 1
     fi
-    touch /tmp/tmp_version.txt
-    echo $VERSION_NAME > /tmp/tmp_version.txt
+    check_version "$VERSION_NAME"
 }
 
 func_update () {
     # Update application
     # Logging update time
-    TIME=`date "+%Y%m%d_%H%M%S"`
+    TIME=$(date "+%Y%m%d_%H%M%S")
+    BACKUP_DIR="$HOME/old_minecraft_server_backup_$TIME"
+    WORK_DIR="$HOME/update_dir/mcsv"
 
-    VERSION_NAME=`head -n 1 /tmp/tmp_version.txt`
-    rm -f /tmp/tmp_version.txt
+    # (VERSION_NAME is inherited from func_online_download / func_local_repository)
+    if [ -z "$VERSION_NAME" ]; then
+        echo "[ERROR] VERSION_NAME is empty"
+        exit 1
+    fi
 
     # 1. Check container running
-    online=`docker inspect --format='{{.State.Status}}' $CONTAINER_NAME`
-    if [ $online != "running" ]; then
+    online=$(docker inspect --format='{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null)
+    if [ "$online" != "running" ]; then
         echo "[SKIP] $CONTAINER_NAME is not running"
         echo "Please start the container before updating..."
         exit 1
@@ -131,85 +206,107 @@ func_update () {
 
     echo "--- Start update ---"
 
-    # 2. Copy application to host
-    if [ "$EDITION_NAME" = "Bedrock" ]; then
-        online2=`docker exec $CONTAINER_NAME /bin/bash -c "ps ax | grep *bedrock_server | grep -v grep | wc -l"`
-    else
-        online2=`docker exec $CONTAINER_NAME /bin/bash -c "ps -ax | grep [j]ava | wc -l"`
-    fi
-    if [ $online2 -ge 1 ]; then
+    # 2. Stop server (if running) and wait until it has really stopped
+    online2=$(count_server_procs)
+    if [ "$online2" -ge 1 ]; then
         echo "- Stop Minecraft server"
-        docker exec -d $CONTAINER_NAME /usr/bin/tmux send-keys -t MCSV "say The Server stops after 10 seconds. Please SAVE immediately!" C-m
+        docker exec "$CONTAINER_NAME" /usr/bin/tmux send-keys -t MCSV "say The Server stops after 10 seconds. Please SAVE immediately!" C-m
         sleep 10
-        docker exec -d $CONTAINER_NAME /usr/bin/tmux send-keys -t MCSV "stop" C-m
-        sleep 10
-    fi
-    echo "- Copy application to host"
-    mkdir /tmp/old_minecraft_server_backup_$TIME
-    if [ "$EDITION_NAME" = "Java" ]; then
-        docker cp -q $CONTAINER_NAME:/opt/minecraft/java/. /tmp/old_minecraft_server_backup_$TIME/ 
-        docker exec -d $CONTAINER_NAME /bin/bash -c "rm -rf /opt/minecraft/java/*"
-    else
-        docker cp -q $CONTAINER_NAME:/opt/minecraft/be/. /tmp/old_minecraft_server_backup_$TIME/
-        docker exec -d $CONTAINER_NAME /bin/bash -c "rm -rf /opt/minecraft/be/*"
-    fi
-
-    # 4. Update files
-    echo "- Update server"
-    mkdir /tmp/update_dir/mcsv
-    if [ "$EDITION_NAME" = "Java" ]; then
-        cp -arT /tmp/old_minecraft_server_backup_$TIME/ /tmp/update_dir/mcsv/
-        rm -f /tmp/update_dir/mcsv/*.jar
-        cp /tmp/update_dir/minecraft_server."$VERSION_NAME".jar /tmp/update_dir/mcsv/
-    else
-        cp /tmp/update_dir/bedrock-server*.zip /tmp/update_dir/mcsv
-        unzip /tmp/update_dir/mcsv/bedrock-server*.zip -d /tmp/update_dir/mcsv/ >/dev/null 2>&1
-        
-        echo "- Restore server data"
-        rm -f /tmp/update_dir/mcsv/allowlist.json
-        rm -f /tmp/update_dir/mcsv/permissions.json
-        rm -f /tmp/update_dir/mcsv/server.properties
-
-        cp /tmp/old_minecraft_server_backup_$TIME/allowlist.json /tmp/update_dir/mcsv/
-        cp /tmp/old_minecraft_server_backup_$TIME/permissions.json /tmp/update_dir/mcsv/
-        cp /tmp/old_minecraft_server_backup_$TIME/server.properties /tmp/update_dir/mcsv/
-        cp -r /tmp/old_minecraft_server_backup_$TIME/worlds /tmp/update_dir/mcsv/
-    fi
-
-    # 5. Create application version infomation file
-    echo "- Add version info"
-    echo $VERSION_NAME > /tmp/update_dir/mcsv/version_info.txt
-    sqlite3 /var/lib/mcsoc/mcsoc.sqlite3 <<END
-    update container set VERSION = "$VERSION_NAME" where NAME = "$CONTAINER_NAME";
-END
-
-    # 6. Copy updated application to container
-    echo "- Copy updated application to container"
-    if [ "$EDITION_NAME" = "Java" ]; then
-        docker cp -q /tmp/update_dir/mcsv/. $CONTAINER_NAME:/opt/minecraft/java/
-    else
-        docker cp -q /tmp/update_dir/mcsv/. $CONTAINER_NAME:/opt/minecraft/be/
-    fi
-
-    # 7. Delete update file
-    echo "- Delete update file"
-    rm -rf /tmp/update_dir
-
-    # 8. Logging updated time
-    echo "Updated application to $VERSION_NAME" > /var/log/mcsoc/$CONTAINER_NAME/app_update_$TIME.log
-    echo "UPDATE TIME: $TIME" >> /var/log/mcsoc/$CONTAINER_NAME/app_update_$TIME.log
-
-    # 9. Restart Minecraft server
-    if [ $online2 -ge 1 ]; then
-        echo "- Restart Minecraft server"
-        if [ "$EDITION_NAME" = "Bedrock" ]; then
-            docker exec -d $CONTAINER_NAME /usr/bin/tmux send-keys -t MCSV "LD_LIBRARY_PATH=. ./bedrock_server" C-m
-        else
-            MS_JAVA_MEM=`sqlite3 /var/lib/mcsoc/mcsoc.sqlite3<<END
-            select MEMORY from container where NAME = "$CONTAINER_NAME";
-END`
-            docker exec -d $CONTAINER_NAME /usr/bin/tmux send-keys -t MCSV "java -Xmx${MS_JAVA_MEM} -Xms${MS_JAVA_MEM} -jar *.jar nogui" C-m
+        docker exec "$CONTAINER_NAME" /usr/bin/tmux send-keys -t MCSV "stop" C-m
+        for _ in $(seq 1 30); do
+            [ "$(count_server_procs)" -eq 0 ] && break
+            sleep 2
+        done
+        if [ "$(count_server_procs)" -ne 0 ]; then
+            echo "[ERROR] Minecraft server did not stop. Update aborted (nothing was changed)."
+            exit 1
         fi
+    fi
+
+    # 3. Copy application to host (backup)
+    echo "- Copy application to host"
+    mkdir -p "$BACKUP_DIR"
+    if ! docker cp -q "$CONTAINER_NAME:$APP_DIR/." "$BACKUP_DIR/" || [ -z "$(ls -A "$BACKUP_DIR")" ]; then
+        abort_update "Backup failed (nothing was deleted)"
+    fi
+
+    # 4. Build the new application on the host
+    echo "- Update server"
+    rm -rf "$HOME/update_dir"
+    mkdir -p "$WORK_DIR"
+    if [ "$EDITION_NAME" = "Java" ]; then
+        cp -arT "$BACKUP_DIR/" "$WORK_DIR/" || abort_update "Failed to copy backup"
+        rm -f "$WORK_DIR"/*.jar
+        cp "$NEW_DIR/minecraft_server.$VERSION_NAME.jar" "$WORK_DIR/" || abort_update "New jar not found"
+    else
+        unzip -o -q "$NEW_DIR/bedrock-server-$VERSION_NAME.zip" -d "$WORK_DIR" || abort_update "Failed to unzip new server"
+
+        echo "- Restore server data"
+        for f in allowlist.json permissions.json server.properties; do
+            if [ -f "$BACKUP_DIR/$f" ]; then
+                cp -f "$BACKUP_DIR/$f" "$WORK_DIR/$f" || abort_update "Failed to restore $f"
+            else
+                echo "[WARN] $f was not found in the old server. Using the default one."
+            fi
+        done
+        if [ -d "$BACKUP_DIR/worlds" ]; then
+            rm -rf "$WORK_DIR/worlds"
+            cp -a "$BACKUP_DIR/worlds" "$WORK_DIR/" || abort_update "Failed to restore worlds"
+        else
+            echo "[WARN] worlds directory was not found in the old server."
+        fi
+
+        # Restore custom packs (merge).
+        # Packs bundled with the new server (vanilla) are kept as the NEW version;
+        # only packs that do not exist in the new server are copied from the backup.
+        for packs in behavior_packs resource_packs; do
+            [ -d "$BACKUP_DIR/$packs" ] || continue
+            mkdir -p "$WORK_DIR/$packs"
+            for pack in "$BACKUP_DIR/$packs"/*; do
+                [ -e "$pack" ] || continue
+                pack_name=$(basename "$pack")
+                if [ ! -e "$WORK_DIR/$packs/$pack_name" ]; then
+                    cp -a "$pack" "$WORK_DIR/$packs/" || abort_update "Failed to restore $packs/$pack_name"
+                    echo "  restored: $packs/$pack_name"
+                fi
+            done
+        done
+    fi
+
+    # 5. Create application version information file
+    echo "- Add version info"
+    echo "$VERSION_NAME" > "$WORK_DIR/version_info.txt"
+
+    # 6. Replace application in the container (roll back on failure)
+    echo "- Copy updated application to container"
+    docker exec "$CONTAINER_NAME" /bin/bash -c "rm -rf ${APP_DIR:?}/*"
+    if ! docker cp -q "$WORK_DIR/." "$CONTAINER_NAME:$APP_DIR/"; then
+        echo "[ERROR] Failed to copy the new application. Rolling back..."
+        docker exec "$CONTAINER_NAME" /bin/bash -c "rm -rf ${APP_DIR:?}/*"
+        docker cp -q "$BACKUP_DIR/." "$CONTAINER_NAME:$APP_DIR/"
+        abort_update "Rolled back to the previous version (backup: $BACKUP_DIR)"
+    fi
+
+    # 7. Record new version in DB (only after everything succeeded)
+    sqlite3 "$DB" "update container set VERSION = '$VERSION_NAME' where NAME = '$SQL_NAME';"
+
+    # 8. Delete update files
+    echo "- Delete update file"
+    rm -rf "$NEW_DIR"
+    rm -rf "$HOME/update_dir"
+
+    # 9. Logging updated time
+    LOG_DIR="/var/log/mcsoc/$CONTAINER_NAME"
+    mkdir -p "$LOG_DIR"
+    {
+        echo "Updated application to $VERSION_NAME"
+        echo "UPDATE TIME: $TIME"
+    } > "$LOG_DIR/app_update_$TIME.log"
+
+    # 10. Restart Minecraft server
+    if [ "$online2" -ge 1 ]; then
+        echo "- Restart Minecraft server"
+        start_server
     fi
 
     echo "#################################"
@@ -222,4 +319,5 @@ END`
 case $1 in
     -o ) func_online_download; func_update ;;
     -f ) func_local_repository; func_update ;;
+    *  ) echo "Usage: $0 {-o|-f}"; exit 1 ;;
 esac

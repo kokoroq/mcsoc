@@ -1,0 +1,184 @@
+#!/bin/bash
+#
+# read system files
+source /etc/mcsoc/.config/remote.conf
+
+########################################################################
+# Minecraft Complex Server Operator for Container (MCSOC)
+#
+# Copyright (c) 2023-2026 kokoroq. All rights reserved.
+#
+#
+#                 MCSOC Remote Control command
+#                     MCSOC Remote Tool
+#
+#
+# PLEASE DO NOT EDIT
+#
+#                                               VERSION: 1.0.0
+########################################################################
+
+#       VARS        #
+VERSION=1.0.0
+
+# Time
+TIME=`date "+%Y%m%d_%H%M%S"`
+
+# Threshold for log lotate
+THRESHOLD=$((5 * 1024 * 1024))
+
+#
+# Command guide
+#
+usage () {
+    cat << EOF
+    Usage: mcsocremote [MCSOC COMMAND]...
+
+    MCSOC remote host control tool
+
+    < OPTIONS >
+        -h                                      Display mcsocremote help
+        -hm                                     Display mcsoc command help
+        -vr                                     Display mcsocremote version
+
+    < MCSOC COMMAND >
+        Add the mcsoc command
+        For more details, check "mcsocremote -hm"
+        
+    Examples:
+        mcsocremote create java /tmp/serer.jar          Create Java server of container
+        mcsocremote start SAMPLE                        Start container
+        mcsocremote backup full SAMPLE                  Full backup for container
+        mcsocremote update ./server.jar SAMPLE          Update java server
+EOF
+}
+
+usage2 () {
+    cat << EOF
+    Usage: mcsoc [OPTION] [COMMAND]...
+
+    Minecraft Complex Server Operator for Container tools
+
+    < OPTIONS >
+        -s | --stat                             Display current mcsoc & container status
+        -v (CONTAINER_NAME)                     Display MCSOC version
+                                                If 'CONTAINER_NAME' is added, Display Minecraft server version
+        -h                                      Display MCSOC help
+
+    < COMMAND >
+        create [be/java] FILE_PATH                  Build container image and create container
+                                                        FILE_PATH : The full path to the server app or backup tar file
+        start CONTAINER_NAME                        Start container
+        stop CONTAINER_NAME                         Stop container
+        restart CONTAINER_NAME                      Restart container
+        rm CONTAINER_NAME                           Delete container
+        rmi                                         Delete all container images
+        jump CONTAINER_NAME                         Connect to the container's shell
+        backup [full/instant] CONTAINER_NAME        Backup for container, Add 'full' or 'instant' after 'backup'
+        update [online/FILE_PATH] CONTAINER_NAME    Update minecraft server application
+                                                        online : Download from the internet and update
+                                                        FILE_PATH : Update by specifying local update file
+        com CONTAINER_NAME "MC_COMMAND"             Send Minecraft command to the Minecraft Server
+                                                        MC_COMMAND : Minecraft command syntax
+        cache-clear                                 Delete all old archive files
+        info                                        Display detailed container information
+        
+    Examples:
+        mcsoc create java /tmp/serer.jar        Create Java server of container
+        mcsoc start SAMPLE                      Start container
+        mcsoc backup full SAMPLE                Full backup for container
+        mcsoc update ./server.jar SAMPLE        Update java server
+EOF
+}
+
+##################################################################
+#                           FUNCTIONS                            #
+##################################################################
+
+func_remote () {
+    # Check var
+    EMPTY_VAR=()
+
+    [ -z "$REMOTE_HOST" ] && EMPTY_VAR+=("REMOTE_HOST")
+    [ -z "$REMOTE_USER" ] && EMPTY_VAR+=("REMOTE_USER")
+    [ -z "$SSHKEY_PUB" ] && EMPTY_VAR+=("SSHKEY_PUB")
+    [ -z "$SSH_PORT" ] && EMPTY_VAR+=("SSH_PORT")
+
+    if [ "${#EMPTY_VAR[@]}" -ne 0 ]; then
+        echo "The var(s) is empty > ${EMPTY_VAR[*]}" >&2
+        echo "Please check </etc/mcsoc/.config/remote.conf>" >&2
+        exit 1
+    fi
+
+    # Check command
+    declare -A CHECKCOM=(
+        [start]=1
+        [stop]=1
+        [restart]=1
+        [create]=1
+        [rm]=1
+        [rmi]=1
+        [jump]=1
+        [backup]=1
+        [info]=1
+        [com]=1
+        [cache-clear]=1
+        [-s]=1
+        [--stat]=1
+        [update]=1
+        [-v]=1
+        [-h]=1
+    )
+
+    if [[ -z "${CHECKCOM[$1]}" ]]; then
+        echo "Invalid mcsoc argument > $arg" >&2
+        exit 1
+    fi
+
+    # Prepare log
+    if [ ! -f /var/log/mcsocremote/mcsocremote.log ]; then
+        touch /var/log/mcsocremote/mcsocremote.log
+    fi
+
+    FILESIZE=$(stat -c%s "/var/log/mcsocremote/mcsocremote.log")
+
+    if [ "$FILESIZE" -ge "$THRESHOLD" ]; then
+        echo "[LOG]    mcsocremote log lodate"
+        mv "/var/log/mcsocremote/mcsocremote.log" "/var/log/mcsocremote/mcsocremote_$TIME.log"
+        touch /var/log/mcsocremote/mcsocremote.log
+    fi
+
+    # Check/Add public key
+    echo "" >> /var/log/mcsocremote/mcsocremote.log
+    echo "-----    SSH-COPY-ID start message     -----" >> /var/log/mcsocremote/mcsocremote.log
+    echo "-----     $TIME     -----" >> /var/log/mcsocremote/mcsocremote.log
+    ssh-copy-id -i "$SSHKEY_PUB" -p "$SSH_PORT" "$REMOTE_USER"@"$REMOTE_HOST" >> /var/log/mcsocremote/mcsocremote.log
+    echo "-----     SSH-COPY-ID end message      -----" >> /var/log/mcsocremote/mcsocremote.log
+
+    # Send a command to the remote host
+    echo "-----        MCSOC start message       -----" | tee -a /var/log/mcsocremote/mcsocremote.log
+    echo "-----     Target host is "$REMOTE_USER"@"$REMOTE_HOST"  Port:"$SSH_PORT"     -----" | tee -a /var/log/mcsocremote/mcsocremote.log
+    if [ "$1" = "jump" ]; then
+        ssh -t -i "$SSHKEY_PRIVATE" -p "$SSH_PORT" "$REMOTE_USER"@"$REMOTE_HOST" "mcsoc $@" | tee -a /var/log/mcsocremote/mcsocremote.log
+    else
+        ssh -i "$SSHKEY_PRIVATE" -p "$SSH_PORT" "$REMOTE_USER"@"$REMOTE_HOST" "mcsoc $@" | tee -a /var/log/mcsocremote/mcsocremote.log
+    fi
+    echo "-----         MCSOC end message        -----" | tee -a /var/log/mcsocremote/mcsocremote.log
+}
+
+##################################################################
+#                               Main                             #
+##################################################################
+
+if [ "$#" -eq 0 ]; then
+  echo "Invalid argument" >&2
+  usage
+  exit 1
+fi
+
+case $1 in
+    -h ) usage ;;
+    -hm ) usage2 ;;
+    -vr ) echo "MCSOC Remote Control Client $VERSION" ;;
+    * ) func_remote "$@" ;;
+esac
