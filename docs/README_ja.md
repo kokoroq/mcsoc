@@ -163,4 +163,5 @@ Contact: kokoroq
 
 # License
 
-MCSOC is distributed under `BSD License`. See [LICENSE](../LICENSE)
+MCSOC is distributed under `BSD License`. See [LICENSE](../LICENSE)  
+Microsoft and Minecraft are trademarks of the Microsoft group of companies. This software is an independent project and is not affiliated with, endorsed by, or sponsored by Microsoft.
